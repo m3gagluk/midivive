@@ -34,10 +34,15 @@ namespace MidiTest
 
             {
                 string filePath = string.Concat(Directory.GetCurrentDirectory(), "\\bindings\\actions.json");
+                if (!File.Exists(filePath))
+                {
+                    Console.WriteLine("File {0} doesn't exist!", filePath);
+                    return false;
+                }
                 EVRInputError err = OpenVR.Input.SetActionManifestPath(filePath);
                 if (err != EVRInputError.None)
                 {
-                    Console.WriteLine("OpenVR SetActionManifestPath error: " + err);
+                    Console.WriteLine("OpenVR SetActionManifestPath error: {0}", err);
                     return false;
                 }
             }
@@ -49,7 +54,7 @@ namespace MidiTest
                 EVRInputError err = OpenVR.Input.GetInputSourceHandle(sources[i], ref handles[i]);
                 if (err != EVRInputError.None)
                 {
-                    Console.WriteLine("OpenVR GetInputSourceHandle error: " + err);
+                    Console.WriteLine("OpenVR GetInputSourceHandle error: {0}", err);
                     return false;
                 }
             }
@@ -58,12 +63,12 @@ namespace MidiTest
                 EVRInputError err = OpenVR.Input.GetActionHandle("/actions/default/out/Haptic", ref vibrationHandle);
                 if (err != EVRInputError.None)
                 {
-                    Console.WriteLine("OpenVR GetActionHandle error: " + err);
+                    Console.WriteLine("OpenVR GetActionHandle error: {0}", err);
                     return false;
                 }
             }
             InitActionSet();
-            int periodMS = 5000;
+            int periodMS = 250;
             Timer timer = new Timer(Refresh, null, 0, periodMS);
             Refresh(null);
             //wait for the timer to start
@@ -84,7 +89,7 @@ namespace MidiTest
             Refresh(null);
             if (err != EVRInputError.None)
             {
-                Console.WriteLine("OpenVR output error: " + err);
+                Console.WriteLine("OpenVR output error: {0}", err);
                 return;
             }
         }
@@ -110,7 +115,7 @@ namespace MidiTest
             EVRInputError err = OpenVR.Input.UpdateActionState(actionSet, actionSetSize);
             if (err != EVRInputError.None)
             {
-                Console.WriteLine("OpenVR UpdateActionState error: " + err);
+                Console.WriteLine("OpenVR UpdateActionState error: {0}", err);
             }
         }
 
