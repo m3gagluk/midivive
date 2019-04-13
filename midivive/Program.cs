@@ -11,23 +11,31 @@ using Mono.Options;
 
 namespace MidiTest
 {
+    class Settings
+    {
+        public bool Debug = false;
+        public string InputFile = null;
+        public float Volume = 0.25F;
+    }
     class Program
     {
 
         static void Main(string[] args)
         {
             bool show_help = false;
-            string inputFile = null;
-            float volume = 0.25F;
+            Settings settings = new Settings();
 
             OptionSet optionSet = new OptionSet() {
                 { "i|input=", "name of the *.mid file",
-                   v => inputFile = v },
+                   v => settings.InputFile = v },
                 { "v|volume=",
-                   "playback volume (haptic intensity)",
-                    (float v) => volume = v },
+                   "playback volume (haptic intensity) from 0 to 1",
+                    (float v) => settings.Volume = v },
+                { "d|debug",  "show debugging messages and play into speakers",
+                   v => settings.Debug = v != null },
                 { "h|help",  "show this message and exit",
                    v => show_help = v != null },
+                
             };
 
             List<string> extra;
@@ -49,29 +57,29 @@ namespace MidiTest
                 return;
             }
 
-            if(inputFile == null)
+            if(settings.InputFile == null)
             {
                 Console.WriteLine("Input file not set! Use -i <*.mid>");
                 return;
             }
             
-
-            Run(inputFile, volume);
+            Run(settings);
         }
 
         
 
 
-        static void Run(string inputFile, float volume)
+        static void Run(Settings settings)
         {
-            if (!OpenVRHelper.InitHMD())
+            if (!OpenVRHelper.InitHMD() && !settings.Debug)
             {
                 return;
             }
-            
+            string inputFile = settings.InputFile;
             if (!File.Exists(inputFile))
             {
-                Console.WriteLine("{0} doesn't exist!", inputFile);
+                Console.WriteLine("Input file {0} doesn't exist!", inputFile);
+                return;
             }
             
             MidiFile midi = new MidiFile(inputFile, false);
@@ -80,7 +88,7 @@ namespace MidiTest
             Player[] players = new Player[2];
             for (int i = 0; i < players.Count(); i++)
             {
-                players[i] = new Player(i, false);
+                players[i] = new Player(i, settings.Debug);
             }
 
 
@@ -94,12 +102,12 @@ namespace MidiTest
             long currentTick = 0;
             Stopwatch sw = Stopwatch.StartNew();
             double ticksPerQuarter = 1;
+            double msPerQuarter = 1;
+            int tracksStopped = 0;
             //based on https://github.com/ipatix/serialmidi/blob/master/serialmidi/Program.cs
             //and https://gitlab.com/Pilatomic/SteamControllerSinger/blob/master/main.cpp
             while (true)
             {
-                int tracksStopped = 0;
-
                 for (int trackNum = 0; trackNum < midi.Events.Count(); trackNum++)
                 {
                     var track = midi.Events[trackNum];
@@ -119,7 +127,7 @@ namespace MidiTest
                             else
                             {
                                 //calculate note duration 
-                                double duration = note.NoteLength * ticksPerQuarter / 10000;
+                                double duration = note.NoteLength * msPerQuarter;
 
                                 //calculate frequency from the note number
                                 //https://pages.mtu.edu/~suits/NoteFreqCalcs.html
@@ -128,9 +136,15 @@ namespace MidiTest
                                 for (int i = 0; i < players.Count(); i++)
                                 {
                                     if (players[i].IsBusy())
+                                    { 
+                                        if (i == players.Count() - 1)
+                                        {
+                                            Console.WriteLine("Note {0} can't be played beacause both controllers are busy. Consider changing this part.", note.NoteName);
+                                        }
                                         continue;
-                                    Console.WriteLine("Controller {0}: note {1} ({2:0.##} Hz) for {2:0.##} ms", i, note.NoteName, frequency, duration);
-                                    players[i].Play(duration, frequency, volume);
+                                    }
+                                    Console.WriteLine("Controller {0}: note {1} ({2:0.##} Hz) for {3:0.##} ms", i, note.NoteName, frequency, duration);
+                                    players[i].Play(duration, frequency, settings.Volume);
                                     break;
                                 }
                             }
@@ -143,22 +157,28 @@ namespace MidiTest
                             {
                                 TempoEvent tempoEvent = (TempoEvent)meta;
                                 bpm = tempoEvent.Tempo;
-                                Console.WriteLine("New tempo: " + bpm + " BPM");
+                                if (settings.Debug)
+                                {
+                                    Console.WriteLine("New tempo: " + bpm + " BPM");
+                                }
                                 //https://stackoverflow.com/questions/2038313/converting-midi-ticks-to-actual-playback-seconds
                                 ticksPerQuarter = (60 * Stopwatch.Frequency) / (bpm * divison);
+                                msPerQuarter = (60000F / (bpm * divison));
                             }
                         }
                         trackEventIndex[trackNum]++;
-                        if (trackEventIndex[trackNum] >= track.Count - 1)
+                        if (trackEventIndex[trackNum] == track.Count)
                         {
                             tracksStopped++;
-                            Console.WriteLine("break " + midi.Events.Count());
+                            if (settings.Debug)
+                            {
+                                Console.WriteLine("Stopped track {0}/{1}", tracksStopped, midi.Events.Count());
+                            }
                             break;
                         }
 
                     }
                 }
-                //FIXME: playback noes not stop
                 if (tracksStopped == midi.Events.Count())
                     break;
 
@@ -173,10 +193,12 @@ namespace MidiTest
             }
             sw.Stop();
 
-            Console.WriteLine("finished");
+            Console.WriteLine("Stopped");
             OpenVRHelper.Shutdown();
         }
-
+        ///<summary>
+        ///A debug class that asynchronously plays tones to the sound device
+        ///</summary>
         class Beep
         {
             private readonly float duration;
@@ -238,8 +260,10 @@ namespace MidiTest
                 {
                     new Beep((int)frequency, (int)duration).Play();
                 }
-                
-                OpenVRHelper.PlayNote(controller, (float)durationMS/1000F, (float)frequency, volume);
+                else
+                {
+                    OpenVRHelper.PlayNote(controller, (float)durationMS / 1000F, (float)frequency, volume);
+                }
             }
         }
         
