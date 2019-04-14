@@ -16,13 +16,14 @@ namespace MidiTest
         public bool Debug = false;
         public string InputFile = null;
         public float Volume = 0.25F;
+        public float Tolerance = 0F;
     }
     class Program
     {
 
         static void Main(string[] args)
         {
-            bool show_help = false;
+            bool showHelp = false;
             Settings settings = new Settings();
 
             OptionSet optionSet = new OptionSet() {
@@ -31,10 +32,13 @@ namespace MidiTest
                 { "v|volume=",
                    "playback volume (haptic intensity) from 0 to 1",
                     (float v) => settings.Volume = v },
-                { "d|debug",  "show debugging messages and play into speakers",
+                { "t|tolerance=",
+                   "time in ms during which controller can start playing another note before the current one finishes playing",
+                    (float v) => settings.Tolerance = v },
+                { "d|debug",  "show debugging messages and play sound into speakers",
                    v => settings.Debug = v != null },
                 { "h|help",  "show this message and exit",
-                   v => show_help = v != null },
+                   v => showHelp = v != null },
                 
             };
 
@@ -51,7 +55,7 @@ namespace MidiTest
                 return;
             }
 
-            if (show_help)
+            if (showHelp)
             {
                 optionSet.WriteOptionDescriptions(Console.Out);
                 return;
@@ -65,8 +69,6 @@ namespace MidiTest
             
             Run(settings);
         }
-
-        
 
 
         static void Run(Settings settings)
@@ -88,21 +90,19 @@ namespace MidiTest
             Player[] players = new Player[2];
             for (int i = 0; i < players.Count(); i++)
             {
-                players[i] = new Player(i, settings.Debug);
+                players[i] = new Player(i, settings.Tolerance, settings.Debug);
             }
-
-
-
+            
+            //these will bet set correctly before any notes are played
             double bpm = 120;
+            double ticksPerQuarter = 1;
+            double msPerQuarter = 1;
 
             int divison = midi.DeltaTicksPerQuarterNote;
-
-
+            
             int[] trackEventIndex = new int[midi.Events.Count()];
             long currentTick = 0;
             Stopwatch sw = Stopwatch.StartNew();
-            double ticksPerQuarter = 1;
-            double msPerQuarter = 1;
             int tracksStopped = 0;
             //based on https://github.com/ipatix/serialmidi/blob/master/serialmidi/Program.cs
             //and https://gitlab.com/Pilatomic/SteamControllerSinger/blob/master/main.cpp
@@ -139,7 +139,7 @@ namespace MidiTest
                                     { 
                                         if (i == players.Count() - 1)
                                         {
-                                            Console.WriteLine("Note {0} can't be played beacause both controllers are busy. Consider changing this part.", note.NoteName);
+                                            Console.WriteLine("Note {0} can't be played because both controllers are busy. Consider changing this part of the song or increasing tolerance time (-t).", note.NoteName);
                                         }
                                         continue;
                                     }
@@ -234,11 +234,13 @@ namespace MidiTest
             private long started;
             private double duration;
             private readonly int controller;
+            private readonly float tolerance;
             private readonly bool debugMode;
 
-            public Player(int controller, bool debugMode)
+            public Player(int controller, float tolerance, bool debugMode)
             {
                 this.controller = controller;
+                this.tolerance = tolerance;
                 this.debugMode = debugMode;
             }
 
@@ -249,7 +251,7 @@ namespace MidiTest
 
             public bool IsBusy()
             {
-                return GetUnixTime() - started < duration;
+                return GetUnixTime() - started < duration - tolerance;
             }
 
             public void Play(double durationMS, double frequency, float volume)
