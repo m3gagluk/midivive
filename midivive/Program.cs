@@ -202,11 +202,13 @@ namespace MidiTest
         class Beep
         {
             private readonly float duration;
+            private readonly float volume;
             private readonly float frequency;
 
-            public Beep(float frequency, float duration)
+            public Beep(float frequency, float duration, float volume)
             {
                 this.duration = duration;
+                this.volume = volume;
                 this.frequency = frequency;
             }
 
@@ -223,6 +225,7 @@ namespace MidiTest
                 };
                 WaveOut waveOut = new WaveOut();
                 waveOut.Init(sineWaveProvider);
+                waveOut.Volume = volume;
                 waveOut.Play();
                 Thread.Sleep((int)duration);
                 waveOut.Stop();
@@ -260,7 +263,7 @@ namespace MidiTest
                 duration = durationMS;
                 if (debugMode)
                 {
-                    new Beep((int)frequency, (int)duration).Play();
+                    new Beep((int)frequency, (int)duration, volume).Play();
                 }
                 else
                 {
