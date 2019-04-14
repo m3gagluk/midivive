@@ -16,7 +16,7 @@ namespace MidiTest
         public bool Debug = false;
         public string InputFile = null;
         public float Volume = 0.25F;
-        public float Tolerance = 0F;
+        public float Tolerance = 40F;
     }
     class Program
     {
