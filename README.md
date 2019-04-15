@@ -1,6 +1,14 @@
 # midivive
 WIP midi file player for Vive Controllers' haptic actuators.
 
+# Requirements
+
+* Vive Controllers **with the latest firmware** (factory one doesn't allow fine control over frequency of haptic pulses)
+* .NET 4.6+
+* SteamVR
+
+
+
 # Sample usage
 
 `midivive.exe -i file.mid`
