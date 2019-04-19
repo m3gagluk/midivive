@@ -46,17 +46,9 @@ namespace MidiTest
                     return false;
                 }
             }
-
-            handles = new ulong[2];
-            string[] sources = { "/user/hand/left", "/user/hand/right" };
-            for (int i = 0; i < 2; i++)
+            if (!EnumerateDevices())
             {
-                EVRInputError err = OpenVR.Input.GetInputSourceHandle(sources[i], ref handles[i]);
-                if (err != EVRInputError.None)
-                {
-                    Console.WriteLine("OpenVR GetInputSourceHandle error: {0}", err);
-                    return false;
-                }
+                return false;
             }
             vibrationHandle = 0;
             {
@@ -67,6 +59,7 @@ namespace MidiTest
                     return false;
                 }
             }
+            
             InitActionSet();
             int periodMS = 250;
             Timer timer = new Timer(Refresh, null, 0, periodMS);
@@ -76,8 +69,7 @@ namespace MidiTest
             initialized = true;
             return true;
         }
-
-        private static ulong[] handles;
+        private static List<ulong> DeviceHandles = new List<ulong>();
 
         private static ulong vibrationHandle = 0;
 
@@ -85,7 +77,9 @@ namespace MidiTest
         {
             if (!initialized)
                 return;
-            EVRInputError err = OpenVR.Input.TriggerHapticVibrationAction(vibrationHandle, 0, duration, frequency, volume, handles[controller]);
+            if (controller > DeviceCount() - 1)
+                return;
+            EVRInputError err = OpenVR.Input.TriggerHapticVibrationAction(vibrationHandle, 0, duration, frequency, volume, DeviceHandles[controller]);
             Refresh(null);
             if (err != EVRInputError.None)
             {
@@ -93,6 +87,12 @@ namespace MidiTest
                 return;
             }
         }
+
+        public static int DeviceCount()
+        {
+            return DeviceHandles.Count;
+        }
+
 
         private static VRActiveActionSet_t[] actionSet;
 
@@ -122,6 +122,34 @@ namespace MidiTest
         public static void Shutdown()
         {
             OpenVR.Shutdown();
+        }
+
+        /// <summary>
+        /// Lists all connected VR controllers that have actuators
+        /// </summary>
+        private static bool EnumerateDevices()
+        {
+            for(uint i = 0; i < 64; i++)
+            {
+                ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
+                StringBuilder sb = new StringBuilder();
+                //ETrackedDeviceProperty.Prop_RegisteredDeviceType_String returns htc/vive_controllerLHR-XXXXXXX
+                OpenVR.System.GetStringTrackedDeviceProperty(i, ETrackedDeviceProperty.Prop_RegisteredDeviceType_String, sb, 1024, ref error);
+                string path = sb.ToString();
+                if (path.Length == 0)
+                    continue;
+                path = "/devices/" + path;
+                //Console.WriteLine("Found controller {0} with path {1}", i, path);
+                ulong handle = 0;
+                EVRInputError err = OpenVR.Input.GetInputSourceHandle(path, ref handle);
+                if (err != EVRInputError.None)
+                {
+                    Console.WriteLine("OpenVR GetInputSourceHandle error: {0}", err);
+                    return false;
+                }
+                DeviceHandles.Add(handle);
+            }
+            return true;
         }
     }
 }

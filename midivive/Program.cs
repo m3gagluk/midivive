@@ -86,8 +86,9 @@ namespace MidiTest
             
             MidiFile midi = new MidiFile(inputFile, false);
 
+            Console.WriteLine("Found {0} devices", OpenVRHelper.DeviceCount());
 
-            Player[] players = new Player[2];
+            Player[] players = new Player[OpenVRHelper.DeviceCount()];
             for (int i = 0; i < players.Count(); i++)
             {
                 players[i] = new Player(i, settings.Tolerance, settings.Debug);
