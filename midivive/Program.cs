@@ -9,7 +9,7 @@ using System.Threading;
 using System.Collections.Generic;
 using Mono.Options;
 
-namespace MidiTest
+namespace MidiVive
 {
     class Settings
     {
@@ -77,6 +77,9 @@ namespace MidiTest
             {
                 return;
             }
+
+            Console.WriteLine("Found {0} devices", OpenVRHelper.DeviceCount());
+            
             string inputFile = settings.InputFile;
             if (!File.Exists(inputFile))
             {

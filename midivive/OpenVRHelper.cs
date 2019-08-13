@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Valve.VR;
 
-namespace MidiTest
+namespace MidiVive
 {
     class OpenVRHelper
     {
@@ -52,7 +52,7 @@ namespace MidiTest
             }
             vibrationHandle = 0;
             {
-                EVRInputError err = OpenVR.Input.GetActionHandle("/actions/default/out/Haptic", ref vibrationHandle);
+                EVRInputError err = OpenVR.Input.GetActionHandle("/actions/default/out/haptic", ref vibrationHandle);
                 if (err != EVRInputError.None)
                 {
                     Console.WriteLine("OpenVR GetActionHandle error: {0}", err);
@@ -61,7 +61,7 @@ namespace MidiTest
             }
             
             InitActionSet();
-            int periodMS = 250;
+            int periodMS = 500;
             Timer timer = new Timer(Refresh, null, 0, periodMS);
             Refresh(null);
             //wait for the timer to start
@@ -79,6 +79,7 @@ namespace MidiTest
                 return;
             if (controller > DeviceCount() - 1)
                 return;
+            //Console.WriteLine("PlayNote: action {0}, restrict {1}", vibrationHandle, DeviceHandles[controller]);
             EVRInputError err = OpenVR.Input.TriggerHapticVibrationAction(vibrationHandle, 0, duration, frequency, volume, DeviceHandles[controller]);
             Refresh(null);
             if (err != EVRInputError.None)
@@ -129,17 +130,17 @@ namespace MidiTest
         /// </summary>
         private static bool EnumerateDevices()
         {
-            for(uint i = 0; i < 64; i++)
+            
+            for (uint i = 0; i < OpenVR.k_unMaxTrackedDeviceCount; i++)
             {
-                ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
-                StringBuilder sb = new StringBuilder();
                 //ETrackedDeviceProperty.Prop_RegisteredDeviceType_String returns htc/vive_controllerLHR-XXXXXXX
-                OpenVR.System.GetStringTrackedDeviceProperty(i, ETrackedDeviceProperty.Prop_RegisteredDeviceType_String, sb, 1024, ref error);
-                string path = sb.ToString();
-                if (path.Length == 0)
+                string path = GetTrackedDeviceProperty(i, ETrackedDeviceProperty.Prop_RegisteredDeviceType_String);
+                if (path == null)
                     continue;
+                Console.WriteLine(i);
+                Console.WriteLine(path);
                 path = "/devices/" + path;
-                //Console.WriteLine("Found controller {0} with path {1}", i, path);
+                Console.WriteLine("Found device {0} with path {1}", i, path);
                 ulong handle = 0;
                 EVRInputError err = OpenVR.Input.GetInputSourceHandle(path, ref handle);
                 if (err != EVRInputError.None)
@@ -150,6 +151,18 @@ namespace MidiTest
                 DeviceHandles.Add(handle);
             }
             return true;
+        }
+        public static string GetTrackedDeviceProperty(uint index, ETrackedDeviceProperty property)
+        {
+            var error = ETrackedPropertyError.TrackedProp_Success;
+            uint len = OpenVR.System.GetStringTrackedDeviceProperty(index, property, null, 0, ref error);
+            if (len > 1)
+            {
+                var result = new StringBuilder((int)len);
+                OpenVR.System.GetStringTrackedDeviceProperty(index, property, result, len, ref error);
+                return result.ToString();
+            }
+            return null;
         }
     }
 }
