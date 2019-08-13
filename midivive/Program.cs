@@ -60,7 +60,7 @@ namespace MidiVive
                 optionSet.WriteOptionDescriptions(Console.Out);
                 return;
             }
-
+            
             if(settings.InputFile == null)
             {
                 Console.WriteLine("Input file not set! Use -i <*.mid>");
@@ -73,12 +73,16 @@ namespace MidiVive
 
         static void Run(Settings settings)
         {
-            if (!OpenVRHelper.InitHMD() && !settings.Debug)
+            if (!OpenVRPlayer.Init() && !settings.Debug)
             {
                 return;
             }
+            List<Player> players = new List<Player>();
 
-            Console.WriteLine("Found {0} devices", OpenVRHelper.DeviceCount());
+            players.AddRange(OpenVRPlayer.GetPlayers());
+            players.AddRange(SteamControllerPlayer.GetPlayers());
+
+            Console.WriteLine("Found {0} devices", players.Count);
             
             string inputFile = settings.InputFile;
             if (!File.Exists(inputFile))
@@ -89,13 +93,6 @@ namespace MidiVive
             
             MidiFile midi = new MidiFile(inputFile, false);
 
-            Console.WriteLine("Found {0} devices", OpenVRHelper.DeviceCount());
-
-            Player[] players = new Player[OpenVRHelper.DeviceCount()];
-            for (int i = 0; i < players.Count(); i++)
-            {
-                players[i] = new Player(i, settings.Tolerance, settings.Debug);
-            }
             
             //these will bet set correctly before any notes are played
             double bpm = 120;
@@ -143,12 +140,12 @@ namespace MidiVive
                                     { 
                                         if (i == players.Count() - 1)
                                         {
-                                            Console.WriteLine("Note {0} can't be played because both controllers are busy. Consider changing this part of the song or increasing tolerance time (-t).", note.NoteName);
+                                            Console.WriteLine("Note {0} can't be played because all controllers are busy. Consider changing this part of the song or increasing tolerance time (-t).", note.NoteName);
                                         }
                                         continue;
                                     }
                                     Console.WriteLine("Controller {0}: note {1} ({2:0.##} Hz) for {3:0.##} ms", i, note.NoteName, frequency, duration);
-                                    players[i].Play(duration, frequency, settings.Volume);
+                                    players[i].PlayNote(frequency, duration, settings.Volume);
                                     break;
                                 }
                             }
@@ -198,7 +195,7 @@ namespace MidiVive
             sw.Stop();
 
             Console.WriteLine("Stopped");
-            OpenVRHelper.Shutdown();
+            OpenVRPlayer.Shutdown();
         }
         ///<summary>
         ///A debug class that asynchronously plays tones to the sound device
@@ -214,14 +211,10 @@ namespace MidiVive
                 this.duration = duration;
                 this.volume = volume;
                 this.frequency = frequency;
+                new Thread(Play).Start();
             }
-
-            public void Play()
-            {
-                new Thread(Play0).Start();
-            }
-
-            private void Play0()
+            
+            private void Play()
             {
                 SignalGenerator sineWaveProvider = new SignalGenerator
                 {
@@ -236,45 +229,6 @@ namespace MidiVive
             }
         }
         
-        class Player
-        {
-            private long started;
-            private double duration;
-            private readonly int controller;
-            private readonly float tolerance;
-            private readonly bool debugMode;
-
-            public Player(int controller, float tolerance, bool debugMode)
-            {
-                this.controller = controller;
-                this.tolerance = tolerance;
-                this.debugMode = debugMode;
-            }
-
-            private long GetUnixTime()
-            {
-                return ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
-            }
-
-            public bool IsBusy()
-            {
-                return GetUnixTime() - started < duration - tolerance;
-            }
-
-            public void Play(double durationMS, double frequency, float volume)
-            {
-                started = GetUnixTime();
-                duration = durationMS;
-                if (debugMode)
-                {
-                    new Beep((int)frequency, (int)duration, volume).Play();
-                }
-                else
-                {
-                    OpenVRHelper.PlayNote(controller, (float)durationMS / 1000F, (float)frequency, volume);
-                }
-            }
-        }
         
     }
 
