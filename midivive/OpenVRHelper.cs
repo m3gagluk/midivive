@@ -19,8 +19,6 @@ namespace MidiVive
 
         public static string GetTrackedDeviceProperty(uint index, ETrackedDeviceProperty property)
         {
-
-
             ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
             uint len = OpenVR.System.GetStringTrackedDeviceProperty(index, property, null, 0, ref error);
             if (len > 1)

@@ -38,6 +38,10 @@ namespace MidiVive
         public static List<OpenVRPlayer> GetPlayers()
         {
             List<OpenVRPlayer> result = new List<OpenVRPlayer>();
+
+            if (!_initialized && !Init())
+                return result;
+            
             for (uint i = 0; i < OpenVR.k_unMaxTrackedDeviceCount; i++)
             {
                 //ETrackedDeviceProperty.Prop_RegisteredDeviceType_String returns htc/vive_controllerLHR-XXXXXXX

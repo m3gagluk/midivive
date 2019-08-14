@@ -66,17 +66,12 @@ namespace MidiVive
                 Console.WriteLine("Input file not set! Use -i <*.mid>");
                 return;
             }
-            
             Run(settings);
         }
 
 
         static void Run(Settings settings)
         {
-            if (!OpenVRPlayer.Init() && !settings.Debug)
-            {
-                return;
-            }
             List<Player> players = new List<Player>();
 
             players.AddRange(OpenVRPlayer.GetPlayers());
