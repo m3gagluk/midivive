@@ -17,7 +17,9 @@ namespace MidiVive
         {
             return this.Started;
         }
-        public bool Debug { get => DebugMode; set => DebugMode = value; }
+        public bool GetDebug() {
+            return this.DebugMode;
+        }
         
         public float GetTolerance()
         {

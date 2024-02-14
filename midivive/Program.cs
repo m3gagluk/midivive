@@ -39,7 +39,7 @@ namespace MidiVive
                    v => settings.Debug = v != null },
                 { "h|help",  "show this message and exit",
                    v => showHelp = v != null },
-                
+
             };
 
             List<string> extra;
@@ -60,7 +60,7 @@ namespace MidiVive
                 optionSet.WriteOptionDescriptions(Console.Out);
                 return;
             }
-            
+
             if(settings.InputFile == null)
             {
                 Console.WriteLine("Input file not set! Use -i <*.mid>");
@@ -74,28 +74,29 @@ namespace MidiVive
         {
             List<Player> players = new List<Player>();
 
-            players.AddRange(OpenVRPlayer.GetPlayers());
+            //players.AddRange(OpenVRPlayer.GetPlayers());
             players.AddRange(SteamControllerPlayer.GetPlayers());
+            players.AddRange(ViveControllerPlayer.GetPlayers());
 
             Console.WriteLine("Found {0} devices", players.Count);
-            
+
             string inputFile = settings.InputFile;
             if (!File.Exists(inputFile))
             {
                 Console.WriteLine("Input file {0} doesn't exist!", inputFile);
                 return;
             }
-            
+
             MidiFile midi = new MidiFile(inputFile, false);
 
-            
+
             //these will bet set correctly before any notes are played
             double bpm = 120;
             double ticksPerQuarter = 1;
             double msPerQuarter = 1;
 
             int divison = midi.DeltaTicksPerQuarterNote;
-            
+
             int[] trackEventIndex = new int[midi.Events.Count()];
             long currentTick = 0;
             Stopwatch sw = Stopwatch.StartNew();
@@ -122,7 +123,7 @@ namespace MidiVive
                             }
                             else
                             {
-                                //calculate note duration 
+                                //calculate note duration
                                 double duration = note.NoteLength * msPerQuarter;
 
                                 //calculate frequency from the note number
@@ -132,7 +133,7 @@ namespace MidiVive
                                 for (int i = 0; i < players.Count(); i++)
                                 {
                                     if (players[i].IsBusy())
-                                    { 
+                                    {
                                         if (i == players.Count() - 1)
                                         {
                                             Console.WriteLine("Note {0} can't be played because all controllers are busy. Consider changing this part of the song or increasing tolerance time (-t).", note.NoteName);
@@ -208,7 +209,7 @@ namespace MidiVive
                 this.frequency = frequency;
                 new Thread(Play).Start();
             }
-            
+
             private void Play()
             {
                 SignalGenerator sineWaveProvider = new SignalGenerator
@@ -223,9 +224,9 @@ namespace MidiVive
                 waveOut.Stop();
             }
         }
-        
-        
+
+
     }
 
-    
+
 }

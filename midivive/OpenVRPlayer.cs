@@ -119,7 +119,8 @@ namespace MidiVive
 
         public static void Shutdown()
         {
-            OpenVR.Shutdown();
+            if (_initialized)
+                OpenVR.Shutdown();
         }
 
         private static VRActiveActionSet_t[] _actionSet;
